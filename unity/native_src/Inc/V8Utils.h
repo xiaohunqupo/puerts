@@ -9,31 +9,11 @@
 
 #include <string>
 #include <sstream>
+#include "Common.h"
 
-#pragma warning(push, 0)  
-#include "libplatform/libplatform.h"
-#include "v8.h"
-#pragma warning(pop)
-
-namespace puerts
+namespace PUERTS_NAMESPACE
 {
 const intptr_t OBJECT_MAGIC = 0xFA0E5D68; // a random value
-
-enum JsValueType
-{
-    NullOrUndefined = 1,
-    BigInt          = 2,
-    Number          = 4,
-    String          = 8,
-    Boolean         = 16,
-    NativeObject    = 32,
-    JsObject        = 64,
-    Array           = 128,
-    Function        = 256,
-    Date            = 512,
-    ArrayBuffer     = 1024,
-    Unknow          = 2048,
-};
 
 class FV8Utils
 {
@@ -85,12 +65,7 @@ public:
 
             // 输出 (filename):(line number): (message).
             std::ostringstream stm;
-            v8::String::Utf8Value FileName(Isolate, Message->GetScriptResourceName());
-            int LineNum = Message->GetLineNumber(Context).FromJust();
-            const char * StrFileName = *FileName;
-            stm << (StrFileName == nullptr ? "unknow file" : StrFileName) << ":" << LineNum << ": " << ExceptionStr;
-
-            stm << std::endl;
+            stm << ExceptionStr;
 
             // 输出调用栈信息
             v8::MaybeLocal<v8::Value> MaybeStackTrace = v8::TryCatch::StackTrace(Context, ExceptionValue);
@@ -99,6 +74,15 @@ public:
                 v8::String::Utf8Value StackTraceVal(Isolate, MaybeStackTrace.ToLocalChecked());
                 stm << std::endl << *StackTraceVal;
             }
+            else
+            {
+                v8::String::Utf8Value FileName(Isolate, Message->GetScriptResourceName());
+                int LineNum = Message->GetLineNumber(Context).FromJust();
+                int StartColumn = Message->GetStartColumn();
+                const char * StrFileName = *FileName;
+                stm << " at (" << (StrFileName == nullptr ? "unknow file" : StrFileName) << " : " << LineNum << " : " << StartColumn << ")";
+            }
+            stm << std::endl;
             return stm.str();
         }
     }
@@ -135,57 +119,57 @@ public:
             Object->GetAlignedPointerFromInternalField(Index) : nullptr;
     }
 
-    V8_INLINE static JsValueType GetType(v8::Local<v8::Context> Context, const v8::Value *Value)
+    V8_INLINE static puerts::JsValueType GetType(v8::Local<v8::Context> Context, const v8::Value *Value)
     {
-        if (!Value) return NullOrUndefined;
+        if (!Value) return puerts::NullOrUndefined;
 
         if (Value->IsNullOrUndefined())
         {
-            return NullOrUndefined;
+            return puerts::NullOrUndefined;
         }
         else if (Value->IsBigInt())
         {
-            return BigInt;
+            return puerts::BigInt;
         }
         else if (Value->IsNumber())
         {
-            return Number;
+            return puerts::Number;
         }
         else if (Value->IsString() || Value->IsRegExp())
         {
-            return String;
+            return puerts::String;
         }
         else if (Value->IsBoolean())
         {
-            return Boolean;
+            return puerts::Boolean;
         }
         else if (Value->IsFunction())
         {
-            return Function;
+            return puerts::Function;
         }
         else if (Value->IsDate())
         {
-            return Date;
+            return puerts::Date;
         }
         else if (Value->IsArrayBufferView() || Value->IsArrayBuffer())
         {
-            return ArrayBuffer;
+            return puerts::ArrayBuffer;
         }
         else if (Value->IsObject())
         {
             auto Object = Value->ToObject(Context).ToLocalChecked();
             if (Object->InternalFieldCount() == 3 && (intptr_t)Object->GetAlignedPointerFromInternalField(2) == OBJECT_MAGIC)
             {
-                return NativeObject;
+                return puerts::NativeObject;
             }
             else
             { 
-                return JsObject;
+                return puerts::JsObject;
             }
         }
         else
         {
-            return Unknow;
+            return puerts::Unknow;
         }
     }
 };
